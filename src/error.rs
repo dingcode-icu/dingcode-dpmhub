@@ -3,8 +3,10 @@ use url::ParseError;
 
 #[derive(Error, Debug)]
 pub enum ApiError {
-    #[error("Api failed!")]
-    ApiFailed, 
+
+    //todo: Integration of all *remote* errors into the ApiFailed
+    #[error("Api failed!{0}")]
+    ApiFailed(String), 
     
     #[error("ilegal url path")]
     UrlError(#[from] ParseError), 

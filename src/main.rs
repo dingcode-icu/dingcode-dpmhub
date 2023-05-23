@@ -25,8 +25,6 @@ fn main() -> Result<(), eframe::Error> {
 
 impl Default for MainApp {
     fn default() -> Self {
-        watch::channel("hello");
-        
         Self {
             rt: runtime::Builder::new_multi_thread()
             .enable_all()
@@ -44,7 +42,7 @@ impl eframe::App for MainApp {
             ui.heading("Dpm for cocos-creator-v2");
             ui.separator(); 
             
-            self.panel_tabled.ui(&self.rt, ctx, ui);
+            self.panel_tabled.ui(ctx, ui);
         });
     }
 }
