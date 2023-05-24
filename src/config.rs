@@ -5,11 +5,20 @@ use std::{env};
 const CORE_JSON:&str = "res/core.json";
 
 ///app运行全局配置上下文
+/// 
+/// ## dpm_config
+/// ```
+/// {
+///     bin_install_path: string    bin安装路径
+/// }
+/// ```
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ConfigContext {
     pub(crate) title: String,
     pub(crate) api_host: String, 
+
+    //dpm sad   
 }
 
 impl Default for ConfigContext {

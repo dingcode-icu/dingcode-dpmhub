@@ -9,6 +9,7 @@ mod compoment;
 mod config;
 mod api;
 mod error;
+mod cmd;
 mod native_opt;
 
 struct MainApp {

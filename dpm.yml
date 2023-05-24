@@ -1,0 +1,10 @@
+#==================
+#dpm package config
+#==================
+name : dpm-popui-e
+version : 1.0.0
+license: MIT
+desc : "simple desc"
+runtime: bin
+dependencies:
+  -
