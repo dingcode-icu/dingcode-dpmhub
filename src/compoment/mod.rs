@@ -1,36 +1,28 @@
 use crate::api::{self, model::DpmCellInfo};
 use eframe::{
-    egui::{self, Context, Ui},
-    epaint::Color32,
-    glow::NONE,
+    egui::{self, Ui},
 };
-use egui_extras::{Size, StripBuilder};
 use log::info;
-use std::{string, sync::Arc};
-use tokio::{runtime, task::spawn_blocking};
+use std::{sync::{Arc, Mutex}};
+use tokio::{runtime::{self, Runtime}, process::Command};
 
-// ----------------------------------------------------------------------------
+
+
+// Panel----------------------------------------------------------------------------
 // PanelTab
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-enum PanelIndex {
-    Binary,
-    Lib,
-    Unknown,
-}
-
-impl Default for PanelIndex {
-    fn default() -> Self {
-        Self::Binary
-    }
-}
 
 pub struct PanelTab {
     rt: tokio::runtime::Runtime,
     is_first: bool,
-    pm_list: Vec<DpmCellInfo>,
     open_panel: PanelIndex,
+    pm_list_arc: Option<Vec<DpmCellInfo>>
 }
+
+
+lazy_static! {
+    pub static ref CFG: Arc<Mutex<PanelTab>> = Arc::new(Mutex::new(PanelTab::default()));
+}
+
 
 impl Default for PanelTab {
     fn default() -> Self {
@@ -39,14 +31,12 @@ impl Default for PanelTab {
                 .enable_all()
                 .build()
                 .unwrap(),
-            pm_list: vec![],
             is_first: false,
             open_panel: Default::default(),
+            pm_list_arc:  None
         }
     }
 }
-
-pub async fn test() {}
 
 impl PanelTab {
     fn get_open_pmtype(idx: &PanelIndex) -> &str {
@@ -75,14 +65,25 @@ impl PanelTab {
         resp.ok()
     }
 
-    fn api_get_pmlist(&self, sender: std::sync::mpsc::Sender<Option<Vec<DpmCellInfo>>>) {
-        let idx = self.open_panel.to_owned();
-        let _ = &self.rt.spawn_blocking(move || {
-            let inner_idx = idx.to_owned();
-            log::info!("call change api req");
-            let ret = Self::async_remote_list(&inner_idx);
+    fn cmd_dpminstall_pkg(rt: &Runtime) {
+        rt.spawn(async move {
+            let cc = tokio::process::Command::new("dpm")
+                .args(vec!["install", "tracer-inspector@0.0.3"])
+                .spawn()
+                .expect("[dpm-cmd ]failed!");
+            let _c = cc.wait_with_output().await;
+            // let mut c= val.lock().unwrap();
+            // *c = None;
+        });
+    }
 
-            let _ = sender.send(ret);
+    fn api_get_pmlist(idx: PanelIndex,  rt: &Runtime) {
+
+        let inner = idx.to_owned();
+        rt.spawn(async move {
+            let ret = Self::async_remote_list(&inner);
+            // let mut d = CFG.lock().unwrap().is_first;
+            CFG.lock().unwrap().pm_list_arc = ret;
         });
     }
 
@@ -92,11 +93,10 @@ impl PanelTab {
             .build()
             .unwrap()
             .block_on(async {
-                let child = std::process::Command::new("dpm")
+                let c = Command::new("dpm")
                     .args(vec!["install", "tracer-inspector@0.0.3"])
-                    .spawn()
+                    .output().await
                     .expect("[dpm-cmd ]failed!");
-                let c = child.wait_with_output().expect("failed to wait on child");
                 let ret: String = String::from_utf8_lossy(&c.stdout).into_owned();
                 if c.status.success() {
                     return (true, ret);
@@ -104,7 +104,6 @@ impl PanelTab {
                 println!("{}", String::from_utf8_lossy(&c.stdout).into_owned());
                 return (false, String::from_utf8_lossy(&c.stderr).into_owned());
             });
-
         result
     }
 
@@ -150,9 +149,9 @@ impl PanelTab {
         });
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+    pub fn ui<'a>(&'a mut self, ctx: &egui::Context, ui: &mut Ui) {
         //todo: check the perform to create channel var
-        let (sender, reciver) = std::sync::mpsc::channel();
+        // let (sender, reciver) = std::sync::mpsc::channel();
 
         ui.horizontal(|ui| {
             let mut resp = ui.selectable_value(&mut self.open_panel, PanelIndex::Binary, "Binary");
@@ -161,7 +160,7 @@ impl PanelTab {
 
             if resp.changed() || !self.is_first {
                 self.is_first = true;
-                self.api_get_pmlist(sender);
+                Self::api_get_pmlist(self.open_panel, &self.rt);
                 log::info!("fake end");
             }
         });
@@ -170,14 +169,12 @@ impl PanelTab {
             egui::ScrollArea::vertical().show(ui, |ui: &mut Ui| {
                 ui.vertical_centered(|ui| {
                     //chk index api
-                    if let Ok(rc) = reciver.recv() {
-                        let pm_list = rc.unwrap_or_default();
-                        self.pm_list = pm_list;
-                    };
 
-                    if self.pm_list.len() > 0 {
+                    let c=  CFG.lock().unwrap();
+                    let pm_list = c.pm_list_arc.as_ref().unwrap();
+                    if pm_list.len() > 0 {
                         let mut my_value = 42;
-                        for p in &self.pm_list {
+                        for p in pm_list {
                             Self::card_widget(p, ui);
                         }
                     } else {
@@ -186,5 +183,20 @@ impl PanelTab {
                 })
             });
         });
+    }
+}
+
+// Enum----------------------------------------------------------------------------
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+enum PanelIndex {
+    Binary,
+    Lib,
+    Unknown,
+}
+
+impl Default for PanelIndex {
+    fn default() -> Self {
+        Self::Binary
     }
 }
