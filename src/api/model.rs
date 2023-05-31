@@ -13,3 +13,11 @@ pub struct DpmCellInfo {
     pub min_runtime_ver: Option<u32>,
     pub max_runtime_ver: Option<u32>,
 }
+
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum ERequestStatu {
+    Idle,
+    Requesting,
+    Error,
+}

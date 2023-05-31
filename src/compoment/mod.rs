@@ -1,39 +1,65 @@
-use crate::api::{self, model::DpmCellInfo};
-use eframe::{
-    egui::{self, Ui},
+use crate::{
+    api::{
+        self,
+        model::{DpmCellInfo, ERequestStatu},
+    },
+    error::ApiError,
 };
+use eframe::egui::{self, Ui};
 use log::info;
-use std::{sync::{Arc, Mutex}};
-use tokio::{runtime::{self, Runtime}, process::Command};
-
-
+use std::sync::{mpsc::Receiver, mpsc::Sender};
+use tokio::{
+    process::Command,
+    runtime::{self},
+};
 
 // Panel----------------------------------------------------------------------------
 // PanelTab
 
 pub struct PanelTab {
-    rt: tokio::runtime::Runtime,
+    api: PanelTabApi,
     is_first: bool,
+    api_status: ERequestStatu,
+    cmd_status: (bool, String),
+    pm_infos: Vec<super::api::model::DpmCellInfo>,
     open_panel: PanelIndex,
-    pm_list_arc: Option<Vec<DpmCellInfo>>
 }
 
+struct PanelTabApi {
+    //status
+    s_status: Sender<ERequestStatu>,
+    r_status: Receiver<ERequestStatu>,
 
-lazy_static! {
-    pub static ref CFG: Arc<Mutex<PanelTab>> = Arc::new(Mutex::new(PanelTab::default()));
+    //cmd
+    s_cmd_dpm: Sender<(bool, String)>,
+    r_cmd_dpm: Receiver<(bool, String)>,
+
+    //api
+    s_api_pmlist: Sender<Vec<super::api::model::DpmCellInfo>>,
+    r_api_pmlist: Receiver<Vec<super::api::model::DpmCellInfo>>,
 }
-
 
 impl Default for PanelTab {
     fn default() -> Self {
+        let (s_api_pmlist, r_api_pmlist) = std::sync::mpsc::channel();
+        let (s_cmd_dpm, r_cmd_dpm) = std::sync::mpsc::channel();
+        let (s_status, r_status) = std::sync::mpsc::channel();
+        let api = PanelTabApi {
+            s_status,
+            r_status,
+            s_cmd_dpm,
+            r_cmd_dpm,
+            s_api_pmlist,
+            r_api_pmlist,
+        };
+
         Self {
-            rt: runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap(),
+            api,
+            api_status: ERequestStatu::Idle,
+            pm_infos: vec![],
             is_first: false,
+            cmd_status: (false, "".to_owned()),
             open_panel: Default::default(),
-            pm_list_arc:  None
         }
     }
 }
@@ -55,73 +81,64 @@ impl PanelTab {
         c
     }
 
-    fn async_remote_list(idx: &PanelIndex) -> Option<Vec<super::api::model::DpmCellInfo>> {
+    fn async_remote_list(
+        idx: &PanelIndex,
+    ) -> Result<Vec<super::api::model::DpmCellInfo>, ApiError> {
         let pm_type = Self::get_open_pmtype(idx);
         info!("async remote with type :{}", pm_type);
         let resp = api::ApiRsvr::get_pmlist(pm_type);
-        if resp.is_err() {
-            log::error!("resp remote api raise error:{:?}", resp.as_ref().err());
-        }
-        resp.ok()
+        resp
     }
 
-    fn cmd_dpminstall_pkg(rt: &Runtime) {
-        rt.spawn(async move {
-            let cc = tokio::process::Command::new("dpm")
-                .args(vec!["install", "tracer-inspector@0.0.3"])
-                .spawn()
-                .expect("[dpm-cmd ]failed!");
-            let _c = cc.wait_with_output().await;
-            // let mut c= val.lock().unwrap();
-            // *c = None;
-        });
-    }
-
-    fn api_get_pmlist(idx: PanelIndex,  rt: &Runtime) {
-
+    fn api_get_pmlist(idx: PanelIndex, tx: Sender<Vec<DpmCellInfo>>, statu: Sender<ERequestStatu>) {
         let inner = idx.to_owned();
-        rt.spawn(async move {
-            let ret = Self::async_remote_list(&inner);
-            // let mut d = CFG.lock().unwrap().is_first;
-            CFG.lock().unwrap().pm_list_arc = ret;
+        std::thread::spawn(move || {
+            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            let _ = statu.send(ERequestStatu::Requesting);
+            rt.block_on(async move {
+                let ret = Self::async_remote_list(&inner);
+                println!("{:?}", ret);
+                if let Ok(l) = ret {
+                    let _ = tx.send(l);
+                    let _ = statu.send(ERequestStatu::Idle);
+                } else {
+                    let _ = statu.send(ERequestStatu::Error);
+                }
+            });
         });
     }
 
-    fn dpm_install(pm: &str) -> (bool, String) {
-        let result = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let c = Command::new("dpm")
-                    .args(vec!["install", "tracer-inspector@0.0.3"])
-                    .output().await
-                    .expect("[dpm-cmd ]failed!");
-                let ret: String = String::from_utf8_lossy(&c.stdout).into_owned();
-                if c.status.success() {
-                    return (true, ret);
+    fn shell_dpm_install(pm: String, tx: Sender<(bool, String)>) {
+        log::info!("start dpm install {}", pm);
+        std::thread::spawn(move || {
+            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            let c = rt.block_on(async move {
+                let out = Command::new("dpm").arg("install").arg(pm).output().await;
+                if out.is_err() {
+                    let _ = tx.send((false, format!("{:?}", out.err())));
                 }
-                println!("{}", String::from_utf8_lossy(&c.stdout).into_owned());
-                return (false, String::from_utf8_lossy(&c.stderr).into_owned());
+                let _ = tx.send((true, "".to_owned()));
             });
-        result
+        });
     }
 
-    fn card_widget(info: &DpmCellInfo, ui: &mut Ui) {
+    fn card_widget(&self, info: &DpmCellInfo, ui: &mut Ui) {
         ui.group(|ui| {
             ui.vertical(|ui| {
                 ui.heading(&info.name);
                 ui.horizontal(|ui| {
-                    let resp = ui.button("install");
-                    if resp.clicked() {
-                        let r = Self::dpm_install(
-                            format!("{}@{}", &info.name.as_str(), &info.ver.as_str()).as_str(),
+                    //install
+                    let resp_ins = ui.button("install");
+                    if resp_ins.clicked() {
+                        let r = Self::shell_dpm_install(
+                            format!("{}@{}", &info.name.as_str(), &info.ver.as_str()),
+                            self.api.s_cmd_dpm.clone(),
                         );
-                        println!("-->>install code: {}, ret:{}", r.0, r.1);
-                        // if r.0 {
-
-                        // }
                     }
+
+                    //doc
+                    let resp_btn = ui.button("doc");
+                    if resp_btn.clicked() {}
                 });
                 ui.horizontal(|ui| {
                     ui.label("runtime:");
@@ -149,9 +166,29 @@ impl PanelTab {
         });
     }
 
+    pub fn watch_data(&mut self) {
+        //status
+        if let Ok(s) = self.api.r_status.try_recv() {
+            log::info!("req statu is :{:?}", s);
+            self.api_status = s;
+        }
+        //cmd status
+        if let Ok(s) = self.api.r_cmd_dpm.try_recv() {
+            log::info!("cmd status is : {}  msg: {}", s.0, s.1);
+            self.cmd_status = s;
+        }
+        //api data
+        if let Ok(pm_list) = self.api.r_api_pmlist.try_recv() {
+            log::info!("api already receive val->{:?}", pm_list);
+            if pm_list.len() > 0 {
+                self.pm_infos = pm_list
+            }
+        }
+    }
+
     pub fn ui<'a>(&'a mut self, ctx: &egui::Context, ui: &mut Ui) {
-        //todo: check the perform to create channel var
-        // let (sender, reciver) = std::sync::mpsc::channel();
+        //watch data
+        self.watch_data();
 
         ui.horizontal(|ui| {
             let mut resp = ui.selectable_value(&mut self.open_panel, PanelIndex::Binary, "Binary");
@@ -159,26 +196,34 @@ impl PanelTab {
             resp |= ui.selectable_value(&mut self.open_panel, PanelIndex::Unknown, "Unknown");
 
             if resp.changed() || !self.is_first {
+                self.pm_infos.clear();
                 self.is_first = true;
-                Self::api_get_pmlist(self.open_panel, &self.rt);
-                log::info!("fake end");
+                Self::api_get_pmlist(
+                    self.open_panel,
+                    self.api.s_api_pmlist.clone(),
+                    self.api.s_status.clone(),
+                );
             }
         });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui: &mut Ui| {
                 ui.vertical_centered(|ui| {
-                    //chk index api
-
-                    let c=  CFG.lock().unwrap();
-                    let pm_list = c.pm_list_arc.as_ref().unwrap();
-                    if pm_list.len() > 0 {
-                        let mut my_value = 42;
-                        for p in pm_list {
-                            Self::card_widget(p, ui);
+                    if self.pm_infos.len() > 0 {
+                        for p in &self.pm_infos {
+                            self.card_widget(&p, ui);
                         }
                     } else {
-                        ui.heading("No Data");
+                        match self.api_status {
+                            ERequestStatu::Requesting => {
+                                ui.heading("Asyncing...");
+                                ui.spinner();
+                            }
+                            ERequestStatu::Error => {
+                                ui.heading("No Data");
+                            }
+                            _ => {}
+                        }
                     }
                 })
             });
