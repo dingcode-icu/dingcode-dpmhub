@@ -36,6 +36,13 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-latest, windows-latest]
+        include:
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz tar.xz tar.zst
+          - target: x86_64-apple-darwin
+            archive: zip
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
@@ -46,16 +53,11 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Compile 
+      - uses: actions/checkout@master
+      - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.3
         env:
-          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }} # This only works if your workflow triggers on new tags.
-          releaseName: 'App Name v__VERSION__' # tauri-action replaces \_\_VERSION\_\_ with the app version.
-          releaseBody: 'See the assets to download and install this version.'
-          releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
-          releaseDraft: true
-          prerelease: false
+          RUSTTARGET: ${{ matrix.target }}
+          ARCHIVE_TYPES: ${{ matrix.archive }}
