@@ -45,10 +45,10 @@ jobs:
         with:
           lfs: true
 
-      - name: rust_build
-        uses: dtolnay/rust-toolchain@stable
-        run: |
-              cargo run --release 
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
