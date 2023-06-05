@@ -1,0 +1,61 @@
+name: NewRelease
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  create-release:
+      runs-on: ubuntu-latest
+      outputs:
+        RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
+
+      steps:
+        - uses: actions/checkout@v2
+        - name: Query version number
+          id: get_version
+          shell: bash
+          run: |
+            echo "using version tag ${GITHUB_REF:10}"
+            echo ::set-output name=version::"${GITHUB_REF:10}"
+
+        - name: Create Release
+          id: create_release
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: '${{ steps.get_version.outputs.VERSION }}'
+            release_name: 'dingcode-dpmhub ${{ steps.get_version.outputs.VERSION }}'
+            body: 'See the assets to download this version and install.'
+            
+  build-bin:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile 
+        uses: rust-build/rust-build.action@v1.4.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }} # This only works if your workflow triggers on new tags.
+          releaseName: 'App Name v__VERSION__' # tauri-action replaces \_\_VERSION\_\_ with the app version.
+          releaseBody: 'See the assets to download and install this version.'
+          releaseId: ${{ needs.create-release.outputs.RELEASE_UPLOAD_ID }}
+          releaseDraft: true
+          prerelease: false
