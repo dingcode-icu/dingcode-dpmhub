@@ -4,29 +4,32 @@
 extern crate lazy_static;
 
 use eframe::egui::{self};
+use fast_log::Config;
+// use dir
 mod api;
 mod cmd;
-mod compoment;
+mod compoment; 
 mod config;
 mod error;
 mod native_opt;
 
 struct MainApp {
-    panel_tab: compoment::PanelTab,
+    panel_tab: compoment::panel_tab::PanelTab,
 }
 
 fn main() -> Result<(), eframe::Error> {
-    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    //tokio runtime background
-    let rt = tokio::runtime::Runtime::new().expect("New tokio runtime failed!");
-    let _ = rt.enter();
+    //log
+    let log_devf = dirs::cache_dir().unwrap().join("logs/dev.log"); 
+    println!("log in {}", log_devf.to_string_lossy());
+    fast_log::init(Config::new().file(&log_devf.display().to_string()).chan_len(Some(100000))).unwrap();
+
     native_opt::run::<MainApp>()
 }
 
 impl Default for MainApp {
     fn default() -> Self {
         Self {
-            panel_tab: compoment::PanelTab::default(),
+            panel_tab: compoment::panel_tab::PanelTab::default(),
         }
     }
 }

@@ -21,3 +21,14 @@ pub enum ERequestStatu {
     Requesting,
     Error,
 }
+
+
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum ECmdStatu {
+    Idle,
+    Running,
+    Error,
+}
+
+
