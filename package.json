@@ -1,0 +1,23 @@
+{
+  "name": "dingcode-dpmhub",
+  "version": "0.0.2",
+  "description": "TBD",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dingcode-icu/dingcode-dpmhub.git"
+  },
+  "keywords": [
+    "dpmhub",
+    "dpm"
+  ],
+  "author": "dwb@dwb.ren",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dingcode-icu/dingcode-dpmhub/issues"
+  },
+  "homepage": "https://github.com/dingcode-icu/dingcode-dpmhub#readme"
+}
