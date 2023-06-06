@@ -10,6 +10,7 @@ jobs:
       runs-on: ubuntu-latest
       outputs:
         RELEASE_UPLOAD_ID: ${{ steps.create_release.outputs.id }}
+        UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
 
       steps:
         - uses: actions/checkout@v2
@@ -36,9 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-latest, windows-latest]
-
     runs-on: ${{ matrix.platform }}
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -55,7 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
           asset_path: target/release/dpm-popui-e
           asset_name: dpm-popui-e
           asset_content_type: application/octet-stream
