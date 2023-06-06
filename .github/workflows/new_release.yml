@@ -48,7 +48,14 @@ jobs:
         with:
           command: build
           args: --release
-
+      # -
+      #   name: Run UPX
+      #   uses: crazy-max/ghaction-upx@v2
+      #   with:
+      #     version: latest
+      #     files: |
+      #       target/release/dpm-popui-e*
+      #     args: -fq
 
       # widnows 
       - name: Upload Win-Release Asset
@@ -73,7 +80,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
           asset_path: target/release/dpm-popui-e
-          asset_name: win_x64_dpm-popui-e
+          asset_name: macos_x64_dpm-popui-e
           asset_content_type: application/octet-stream
           
           
