@@ -51,8 +51,8 @@ jobs:
 
 
       # widnows 
-      if: ${{ matrix.platform == 'windwos-latest' }}
       - name: Upload Win-Release Asset
+        if: ${{ matrix.platform == 'windwos-latest' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,12 +65,11 @@ jobs:
           
 
       # macos
-      elif: ${{ matrix.platform == 'macos-latest' }}
       - name: Upload Macos-Release Asset
+        if: ${{ matrix.platform == 'macos-latest' }}
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
         with:
           upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
           asset_path: target/release/dpm-popui-e
