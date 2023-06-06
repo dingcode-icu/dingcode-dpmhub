@@ -49,22 +49,33 @@ jobs:
           command: build
           args: --release
 
-      - name: Upload Release Asset
+
+      # widnows 
+      if: ${{ matrix.platform == 'windwos-latest' }}
+      - name: Upload Win-Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
         with:
-          - if: ${{ matrix.platform ==  'windows-latest' }}
-            upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-            asset_content_type: application/octet-stream
-            asset_path: target/release/dpm-popui-e.exe
-            asset_name: win_x64_dpm-popui-e.exe
+          upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: target/release/dpm-popui-e.exe
+          asset_name: win_x64_dpm-popui-e.exe
+          asset_content_type: application/octet-stream
+          
 
-          - if: ${{ matrix.platform ==  'macos-latest' }} 
-            upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-            asset_content_type: application/octet-stream
-            asset_path: target/release/dpm-popui-e
-            asset_name: macos_x64_dpm-popui-e
+      # macos
+      elif: ${{ matrix.platform == 'macos-latest' }}
+      - name: Upload Macos-Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+        with:
+          upload_url: ${{ needs.create-release.outputs.UPLOAD_URL }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: target/release/dpm-popui-e
+          asset_name: win_x64_dpm-popui-e
+          asset_content_type: application/octet-stream
           
           
     
