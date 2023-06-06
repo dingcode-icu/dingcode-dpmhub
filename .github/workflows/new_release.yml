@@ -59,7 +59,7 @@ jobs:
 
       # widnows 
       - name: Upload Win-Release Asset
-        if: ${{ matrix.platform == 'windwos-latest' }}
+        if: ${{ matrix.platform == 'windows-latest' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
