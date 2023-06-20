@@ -48,14 +48,14 @@ jobs:
         with:
           command: build
           args: --release
-      # -
-      #   name: Run UPX
-      #   uses: crazy-max/ghaction-upx@v2
-      #   with:
-      #     version: latest
-      #     files: |
-      #       target/release/dpm-popui-e*
-      #     args: -fq
+      -
+        name: Run UPX
+        uses: crazy-max/ghaction-upx@v2
+        with:
+          version: latest
+          files: |
+            target/release/dpm-popui-e*
+          args: -fq
 
       # widnows 
       - name: Upload Win-Release Asset

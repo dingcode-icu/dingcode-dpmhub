@@ -8,7 +8,7 @@ use fast_log::Config;
 // use dir
 mod api;
 mod cmd;
-mod compoment; 
+mod compoment;
 mod config;
 mod error;
 mod native_opt;
@@ -19,9 +19,17 @@ struct MainApp {
 
 fn main() -> Result<(), eframe::Error> {
     //log
-    let log_devf = dirs::cache_dir().unwrap().join("logs/dev.log"); 
-    println!("log in {}", log_devf.to_string_lossy());
-    fast_log::init(Config::new().file(&log_devf.display().to_string()).chan_len(Some(100000))).unwrap();
+    let log_devf = std::env::current_dir().unwrap().join("logs/dpmhub_gui.log");
+    fast_log::init(
+        Config::new()
+            .file_loop(
+                &log_devf.display().to_string(),
+                fast_log::consts::LogSize::MB(2),
+            )
+            .console()
+            .chan_len(Some(100000)),
+    )
+    .unwrap();
 
     native_opt::run::<MainApp>()
 }

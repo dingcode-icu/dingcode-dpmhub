@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DpmCellInfo {
+    //remote+loc
     pub name: String,
     pub ver: String,
     pub descript: String,
@@ -12,6 +15,8 @@ pub struct DpmCellInfo {
     pub runtime: String,
     pub min_runtime_ver: Option<u32>,
     pub max_runtime_ver: Option<u32>,
+    //loc 
+    pub scripts: Option<HashMap<String, String>>
 }
 
 
@@ -22,13 +27,9 @@ pub enum ERequestStatu {
     Error,
 }
 
-
-
 #[derive(PartialEq, Clone, Debug)]
 pub enum ECmdStatu {
     Idle,
     Running,
     Error,
 }
-
-
