@@ -22,6 +22,7 @@ fn main() -> Result<(), eframe::Error> {
     let log_devf = std::env::current_dir().unwrap().join("logs/dpmhub_gui.log");
     fast_log::init(
         Config::new()
+            .level(log::LevelFilter::Info)
             .file_loop(
                 &log_devf.display().to_string(),
                 fast_log::consts::LogSize::MB(2),

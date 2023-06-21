@@ -125,7 +125,7 @@ impl PanelTab {
     fn api_get_pmlist(idx: PanelIndex, tx: Sender<Vec<DpmCellInfo>>, statu: Sender<ERequestStatu>) {
         let inner = idx.to_owned();
         std::thread::spawn(move || {
-            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            let rt = runtime::Builder::new_current_thread().enable_io().build().unwrap();
             let _ = statu.send(ERequestStatu::Requesting);
             rt.block_on(async move {
                 let ret = Self::async_remote_list(&inner);
@@ -143,7 +143,7 @@ impl PanelTab {
     fn shell_dpm_install(pm: String, tx: Sender<(ECmdStatu, String)>) {
         log::info!("start dpm install {}", pm);
         std::thread::spawn(move || {
-            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            let rt = runtime::Builder::new_current_thread().enable_io().build().unwrap();
             let _ = tx.send((ECmdStatu::Running, "install".to_owned()));
             let c = rt.block_on(async move {
                 let out = Command::new("dpm").arg("install").arg(pm).output().await;
@@ -157,7 +157,7 @@ impl PanelTab {
 
     fn shell_dpm_list(tx: Sender<(ECmdStatu, String)>, d_tx: Sender<Vec<api::model::DpmCellInfo>>) {
         std::thread::spawn(move || {
-            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            let rt = runtime::Builder::new_current_thread().enable_io().build().unwrap();
             let _ = tx.send((ECmdStatu::Running, "list".to_owned()));
             let c: () = rt.block_on(async move {
                 let out = Command::new("dpm").arg("list").output().await;
