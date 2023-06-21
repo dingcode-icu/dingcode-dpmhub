@@ -8,7 +8,10 @@ use crate::{
 use eframe::egui::{self, Ui};
 use log::info;
 use serde_json::json;
-use std::sync::{mpsc::Receiver, mpsc::Sender};
+use std::{
+    path::PathBuf,
+    sync::{mpsc::Receiver, mpsc::Sender},
+};
 use tokio::{
     process::Command,
     runtime::{self},
@@ -83,6 +86,10 @@ impl Default for PanelTab {
 }
 
 impl PanelTab {
+    fn get_dpmins_path(exec_path: PathBuf, pm: &str) -> PathBuf {
+        return exec_path.join("dpms_").join(pm);
+    }
+
     fn get_open_pmtype(idx: &PanelIndex) -> &str {
         let c = match idx {
             PanelIndex::Binary => {
@@ -220,7 +227,7 @@ impl PanelTab {
                     ui.label(&info.license.to_owned().unwrap_or_default());
                 });
                 ui.label("Desc:");
-                ui.label(if info.descript.len() > 0 { 
+                ui.label(if info.descript.len() > 0 {
                     &info.descript
                 } else {
                     "No Description"
@@ -232,19 +239,40 @@ impl PanelTab {
                             ui.separator();
                             ui.horizontal(|ui| {
                                 for cmd_name in c.keys() {
-                                    let cmd =  c.get(cmd_name).unwrap_or(&"unknown".to_string()).to_owned();
-                                    let  resp = ui.add_sized([50., 30.], egui::Button::new(cmd_name));
-                                    if resp.clicked(){
-                                        let cmd_ret: Result<std::process::Output, std::io::Error> = std::process::Command::new(&cmd).output();
-                                        log::debug!("cmd :{:?}  ret :{:?}", &cmd,  cmd_ret);
+                                    let cmd = c
+                                        .get(cmd_name)
+                                        .unwrap_or(&"unknown".to_string())
+                                        .to_owned();
+                                    let resp =
+                                        ui.add_sized([50., 30.], egui::Button::new(cmd_name));
+                                    if resp.clicked() {
+                                        let pm_path = Self::get_dpmins_path(
+                                            std::env::current_dir().unwrap(),
+                                            l.name.as_str(),
+                                        );
+                                        log::info!("execute script in path:{:?}",pm_path);
+                                        let mut iter_val = cmd.split_whitespace();
+                                        let cmd = iter_val.next();
+                                        let cmd_r = cmd.unwrap_or("unknown").to_owned();
+                                        let args_v: Vec<&str> = iter_val.collect();
+                                        let _ = std::env::set_current_dir(Self::get_dpmins_path(
+                                            std::env::current_dir().unwrap(),
+                                            l.name.as_str(),
+                                        ));
+
+                                        log::debug!(
+                                            "cmd :{:?}  args: {:?} ",
+                                            &cmd_r,
+                                            args_v.join(" ").to_owned(),
+                                            
+                                        );
+                                        let cmd_ret: Result<std::process::Output, std::io::Error> =
+                                            std::process::Command::new(&cmd_r)
+                                                .args(args_v.clone())
+                                                .output();
+                                       
                                     }
-                                    ui.colored_label(
-                                        egui::Color32::GRAY,
-                                        format!(
-                                            "cmd:{}",
-                                            &cmd
-                                        ),
-                                    );
+                                    ui.colored_label(egui::Color32::GRAY, format!("cmd:{}", &cmd));
                                 }
                             });
                         }
@@ -338,7 +366,6 @@ impl PanelTab {
                 ui.vertical_centered(|ui| {
                     if self.pm_infos.len() > 0 {
                         for p in &self.pm_infos {
-
                             ui.add_space(10.);
                             self.card_widget(&p, ui);
                         }

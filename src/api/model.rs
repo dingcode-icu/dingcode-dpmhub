@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Serialize, Deserialize};
 
@@ -16,7 +16,8 @@ pub struct DpmCellInfo {
     pub min_runtime_ver: Option<u32>,
     pub max_runtime_ver: Option<u32>,
     //loc 
-    pub scripts: Option<HashMap<String, String>>
+    pub scripts: Option<HashMap<String, String>>, 
+    pub install_path: Option<PathBuf>
 }
 
 
